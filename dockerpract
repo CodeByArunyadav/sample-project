@@ -1,0 +1,172 @@
+
+
+
+--------------------------------------------------------
+Add your user to the docker group
+
+why?
+--------------------------------------------------------
+By Default docker software needs root previlige to run on a server
+when we install it also it starts runnings as root user
+so, a regular user can not run / use docker commands 
+
+also, when you installed docker software it creates a system group called docker
+
+so that, we can add regular users (ex: devops/ubuntu) on system to the docker group, 
+with which regular users (ex: devops/ubuntu) can run docker commands
+
+## Add your user to the docker group, giving the user permission to run docker commands:
+
+sudo usermod -aG docker devops
+
+--------------------------------------------------------------------------------------
+Install using the apt repository
+Before you install Docker Engine for the first time on a new host machine, you need to set up the Docker repository. 
+Afterward, you can install and update Docker from the repository.
+
+
+Docker Engine depends on containerd and runc. Docker Engine bundles these dependencies as one bundle: containerd.io. 
+If you have installed the containerd or runc previously, uninstall them to avoid conflicts with the versions bundled with Docker Engine.
+
+Run the following command to uninstall all conflicting packages:
+Command for uninstalling earlier version of Docker--
+
+
+for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
+
+Still not uninstall completly 
+
+Uninstall Docker Engine
+Uninstall the Docker Engine, CLI, containerd, and Docker Compose packages:
+
+udo apt-get purge docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras
+Images, containers, volumes, or custom configuration files on your host aren't automatically removed. To delete all images, containers, and volumes:
+
+
+ sudo rm -rf /var/lib/docker
+ sudo rm -rf /var/lib/containerd
+You have to delete any edited configuration files manually.
+------------------------------------------------------------------------------------------------------------------------------
+
+1. Set up Docker's apt repository.
+
+# Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+
+2.Install the Docker packages.
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+3.Verify that the Docker Engine installation is successful by running the hello-world image.
+sudo docker run hello-world
+
+sudo service docker start
+systemtcl status docker  // to check services status
+
+https://docs.docker.com/engine/install/ubuntu/
+
+
+-------------------------------------------------------------------------------------------
+In this step, we will show you how to build a custom Docker image for your application using the Dockerfile. We will create a new custom Docker image based on Ubuntu 22.04 image, for the PHP-FPM and Nginx services, then run the new container with a simple phpinfo script.
+
+First, create a new project directory and create an empty Dockerfile.
+
+mkdir -p nginx-image
+cd nginx-image/
+touch Dockerfile
+
+Now edit the 'Dockerfile' script using your own editor (for this example we're using nano).
+
+nano Dockerfile
+
+On the top of the line, add the base-image Ubuntu 22.04 image using the FROM instruction as below.
+
+# Download base image ubuntu 22.04
+FROM ubuntu:22.04
+
+
+Now add detailed information about the custom image using the LABEL instruction.
+
+# LABEL about the custom image
+LABEL maintainer="admin@howtoforge.com"
+LABEL version="0.1"
+LABEL description="This is a custom Docker Image for PHP-FPM and Nginx."
+
+
+# Disable Prompt During Packages Installation
+ARG DEBIAN_FRONTEND=noninteractive
+
+
+Next, run the 'apt update' command before installing any packages.
+
+# Update Ubuntu Software repository
+RUN apt update
+
+
+Now install the Nginx, PHP-FPM, and supervisor packages. Once all installation is completed, remove all packages cache to reduce the size of the custom image.
+
+# Install nginx, php-fpm and supervisord from ubuntu repository
+RUN apt install -y nginx php-fpm supervisor
+RUN rm -rf /var/lib/apt/lists/*
+RUN apt clean
+
+
+Define a new environment variable that can be passed to the custom image.
+
+# Define the ENV variable
+ENV nginx_vhost /etc/nginx/sites-available/default
+ENV php_conf /etc/php/8.1/fpm/php.ini
+ENV nginx_conf /etc/nginx/nginx.conf
+ENV supervisor_conf /etc/supervisor/supervisord.conf
+
+
+Now copy the Nginx default configuration to the 'nginx_vhost' variable, replace the PHP configuration 'cgi.fix_pathinfo=1' with 'cgi.fix_pathinfo=0' on the php.ini config file, then add the 'daemon off' option to the default 'nginx_conf' variable.
+
+# Enable PHP-fpm on nginx virtualhost configuration
+COPY default ${nginx_vhost}
+RUN sed -i -e 's/;cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g' ${php_conf} && echo "\ndaemon off;" >> ${nginx_conf}
+
+Copy the custom supervisord configuration to the 'supervisor_conf' variable.
+
+#Copy supervisor configuration
+COPY supervisord.conf ${supervisor_conf}
+Create a new directory for PHP-FPM sock file, change the ownership of the web-root directory '/var/www/html' and PHP-FPM directory '/run/php' to the default user 'www-data'.
+
+RUN mkdir -p /run/php
+RUN chown -R www-data:www-data /var/www/html
+RUN chown -R www-data:www-data /run/php
+Define the volume for the custom image so we can mount all of those directories to the host machine.
+
+# Volume configuration
+VOLUME ["/etc/nginx/sites-enabled", "/etc/nginx/certs", "/etc/nginx/conf.d", "/var/log/nginx", "/var/www/html"]
+
+
+-----------------------------------------------------------------------------------------------------------------
+First static sites
+-----------------------------------------------------------------------------------------------------------------
+1. Copy the site to local docker server of any directory
+2. Make dockerfile inside directory
+3. write Docker file base engine , paths , entry points etc
+	
+        FROM nginx
+        COPY . /usr/share/nginx/html
+
+4. build docker as docker build -t img-abc-file .
+
+        docker build -t img-static-site1 .
+
+5. run image file as docker run -it -d -p 85:80 img-abc-file
+
+	docker run -it -d -p 80:80 img-static-site-example
+
